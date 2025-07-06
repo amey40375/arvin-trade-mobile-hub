@@ -24,7 +24,8 @@ const Register = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      // First, sign up the user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
@@ -35,12 +36,50 @@ const Register = () => {
         },
       });
 
-      if (error) throw error;
+      if (authError) {
+        console.error('Auth error:', authError);
+        throw authError;
+      }
+
+      // If auth successful but no user returned, it might be because email confirmation is required
+      if (!authData.user) {
+        toast.success('Pendaftaran berhasil! Silakan cek email untuk konfirmasi.');
+        navigate('/login');
+        return;
+      }
+
+      // If we have a user, try to create the profile manually if the trigger failed
+      if (authData.user) {
+        try {
+          const { error: profileError } = await supabase
+            .from('users')
+            .upsert({
+              id: authData.user.id,
+              email: formData.email,
+              nama: formData.nama,
+              role: formData.role,
+              saldo: 0,
+              langganan_premium: false,
+              jumlah_upload: 0,
+              max_upload: 3,
+              status: 'aktif',
+            });
+
+          if (profileError) {
+            console.error('Profile creation error:', profileError);
+            // Don't throw here, the trigger might have worked
+          }
+        } catch (profileErr) {
+          console.error('Profile creation failed:', profileErr);
+          // Continue anyway, user might still be created by trigger
+        }
+      }
 
       toast.success('Pendaftaran berhasil! Silakan login.');
       navigate('/login');
     } catch (error: any) {
-      toast.error(error.message || 'Pendaftaran gagal');
+      console.error('Registration error:', error);
+      toast.error(error.message || 'Pendaftaran gagal. Silakan coba lagi.');
     } finally {
       setLoading(false);
     }

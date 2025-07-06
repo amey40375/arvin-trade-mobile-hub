@@ -28,6 +28,7 @@ function App() {
   useEffect(() => {
     // Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session:', session);
       if (session?.user) {
         setUser(session.user);
       }
@@ -37,6 +38,7 @@ function App() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session);
         if (session?.user) {
           setUser(session.user);
         } else {

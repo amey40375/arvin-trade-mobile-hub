@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuthStore } from '@/hooks/useAuthStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -10,8 +11,11 @@ import { ArrowLeft } from 'lucide-react';
 
 const Login = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const { setUser } = useAuthStore();
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  });
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -19,17 +23,27 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Login error:', error);
+        if (error.message.includes('Invalid login credentials')) {
+          throw new Error('Email atau password salah');
+        }
+        throw error;
+      }
 
-      toast.success('Login berhasil!');
-      navigate('/');
+      if (data.user) {
+        setUser(data.user);
+        toast.success('Login berhasil!');
+        navigate('/');
+      }
     } catch (error: any) {
-      toast.error(error.message || 'Login gagal');
+      console.error('Login failed:', error);
+      toast.error(error.message || 'Login gagal. Silakan coba lagi.');
     } finally {
       setLoading(false);
     }
@@ -60,8 +74,8 @@ const Login = () => {
             </label>
             <Input
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               placeholder="Masukkan email Anda"
               required
             />
@@ -73,9 +87,9 @@ const Login = () => {
             </label>
             <Input
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Masukkan password Anda"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              placeholder="Masukkan password"
               required
             />
           </div>
@@ -99,6 +113,12 @@ const Login = () => {
               Daftar di sini
             </button>
           </p>
+        </div>
+
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <p className="text-xs text-gray-600 mb-2">Demo Admin Login:</p>
+          <p className="text-xs text-gray-700">Email: admin@smartpay.com</p>
+          <p className="text-xs text-gray-700">Password: SmartAdmin123</p>
         </div>
       </Card>
     </div>
